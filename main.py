@@ -14,18 +14,10 @@ def draw(cloth):
 
 
 def main():
-    cloth = Cloth(
-        SURF_WIDTH,
-        SURF_HEIGHT,
-        100,
-        100,
-        image=pygame.image.load("image.jpg").convert(),
-    )
+    sub_surface = win.subsurface((100, 100, SURF_WIDTH, SURF_HEIGHT))
+    cloth = Cloth(sub_surface, image=pygame.image.load("texture.png").convert(),)
 
     clock = pygame.time.Clock()
-
-    pygame.time.set_timer(pygame.USEREVENT + 1, 1000)
-
     run = True
 
     while run:
@@ -37,8 +29,6 @@ def main():
                 run = False
                 break
 
-            if e.type == pygame.USEREVENT + 1:
-                cloth.update_wind()
             cloth.check_event(e)
 
         cloth.update()

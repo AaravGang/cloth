@@ -1,18 +1,17 @@
 import pygame, time, math, random
 import pygame.gfxdraw
 from point_mass import PointMass
+from wind import Wind
 
 
 class Cloth:
-    def __init__(self, width, height, x, y, image=None):
-        # cloth constants
-        self.width, self.height = width, height
-        self.x, self.y, self.offset = x, y, pygame.Vector2(-x, -y)
-
+    def __init__(self, surface: pygame.surface, image=None, wind=True):
         # create surface
-        self.surf = pygame.Surface((width, height))
-        self.rect = self.surf.get_rect(topleft=(self.x, self.y))
+        self.surf = surface
         self.surf.set_colorkey((0, 0, 0))  # set colorkey cuz gfxdraw wants it...
+
+        self.width, self.height = self.surf.get_size()
+        self.offset = -pygame.Vector2(self.surf.get_abs_offset())
 
         # no. of rows and cols, cols is really just cols+1 for a quick fix for rendering
         self.rows, self.cols = 40, 41
@@ -54,15 +53,20 @@ class Cloth:
         self.mouse_influence_scalar = 1
 
         # wind
-        self.wind = 0  # wind will be horizontal left or right
+        self.wind = [
+            wind,
+            random.choice((-1, 1)) * random.randint(500, 1000),
+            Wind(self.height / 2, self.width),
+        ]  # (have wind? , wind speed: left or right)
+        self.add_wind()
 
     # create 2d grid of pointmasses
     def create_cloth(self):
-
+        # TODO: these offsets mess up the rendering, figure out what's wrong and fix it
         xoff = (
             self.width / 2 - (self.cols - 1) * self.resting_distance / 2
         )  # offset to center the cloth in the surface
-        yoff = 0
+        yoff = 20
 
         self.xoff, self.yoff = xoff, yoff
 
@@ -92,8 +96,8 @@ class Cloth:
             for col in range(self.cols):
                 p = cloth[row][col]
 
+                # up
                 if row > 0:
-                    # make a link with the point mass above it
                     p.make_link(
                         cloth[row - 1][col],
                         self.resting_distance,
@@ -101,16 +105,7 @@ class Cloth:
                         self.tear_sensitivity,
                     )
 
-                    # diagonal top left
-                    # if col > 0:
-                    #     p.make_link(
-                    #         cloth[row - 1][col - 1],
-                    #         self.diagonal_resting_distance,
-                    #         self.stiffness,
-                    #         self.tear_sensitivity,
-                    #     )
-
-                # make a link with the point mass left of it
+                # left
                 if col > 0:
                     p.make_link(
                         cloth[row][col - 1],
@@ -119,7 +114,7 @@ class Cloth:
                         self.tear_sensitivity,
                     )
 
-                # make a link with the point mass right of it
+                # right
                 # if col < self.cols - 1:
                 #     p.make_link(
                 #         cloth[row][col + 1],
@@ -128,11 +123,32 @@ class Cloth:
                 #         self.tear_sensitivity,
                 #     )
 
+                # diagonal se -> nw
+                # if row > 0 and col > 0:
+                #     p.make_link(
+                #         cloth[row - 1][col - 1],
+                #         self.diagonal_resting_distance,
+                #         self.stiffness,
+                #         self.tear_sensitivity,
+                #     )
+
         return cloth
 
+    def add_wind(self):
+        self.wind[0] = True
+        # set time for wind
+        pygame.time.set_timer(pygame.USEREVENT + 1, 5000)
+
     # randomy add some wind
-    def update_wind(self):
-        self.wind = random.randint(-1000, 1000)
+    def update_wind(self, e):
+        if self.wind[0]:
+
+            if e.type == pygame.USEREVENT + 1:
+                self.wind[1] = random.choice([-1, 1]) * random.randint(500, 1000)
+                self.wind[2].set_vel(self.wind[1])
+
+            else:
+                self.wind[1] *= 0.75  # dampen
 
     # update the physics
     def update(self):
@@ -166,10 +182,13 @@ class Cloth:
             # update the physics of each pointmass
             for row in self.cloth:
                 for p in row:
-                    p.update(1 / 125, self.wind)
+                    p.update(1 / 125, self.wind[1])
+
+        self.wind[2].update()
 
     # set the image for the cloth
     def set_image(self, image):
+        # resize the image to match the cloth size
         self.image = pygame.transform.scale(
             image,
             (
@@ -177,6 +196,34 @@ class Cloth:
                 (self.rows - 1) * self.resting_distance,
             ),
         )
+
+        # convert image to numpy array, so that chunks can be taken out of it
+        image_arr = pygame.surfarray.array3d(self.image)
+
+        # divide the image into chunks that can be stretched to fit the points
+        self.mosaic = []
+        for row in range(1, self.rows):
+            self.mosaic.append([])
+            for col in range(1, self.cols):
+                # make a surface from a chunk out of the original image
+                surf = pygame.surfarray.make_surface(
+                    image_arr[
+                        (col - 1)
+                        * self.resting_distance : (col)
+                        * self.resting_distance,
+                        (row - 1)
+                        * self.resting_distance : (row)
+                        * self.resting_distance,
+                    ]
+                )
+                # need to set a colorkey for gfxdraw to be happy :D
+                surf.set_colorkey((255, 0, 255))
+
+                self.mosaic[-1].append(surf)
+
+        """ TODO : add the points that will draw the polygon also to the mosaic,
+            so that they don't need to be calculated every single time in draw
+        """
 
     # all drawing
     def draw(self, win):
@@ -186,7 +233,7 @@ class Cloth:
             for c, p in enumerate(row):
 
                 # draw a textured polygon with the points before it
-                if self.image is not None and r > 0 and c > 0:
+                if r > 0 and c > 0:
                     topleft = self.cloth[r - 1][c - 1]  # diagonal left of p
                     topright = self.cloth[r - 1][c]  # above p
                     bottomright = p
@@ -202,9 +249,29 @@ class Cloth:
                         p.draw(self.surf)
                         continue
 
-                    # might throw a few random errors
-                    try:
-                        pygame.gfxdraw.textured_polygon(
+                    if self.image is not None:
+                        # might throw a few random errors
+                        try:
+                            pygame.gfxdraw.textured_polygon(
+                                self.surf,
+                                [
+                                    topleft.pos,
+                                    topright.pos,
+                                    bottomright.pos,
+                                    bottomleft.pos,
+                                ],
+                                self.mosaic[r - 1][c - 1],
+                                0,
+                                0,
+                            )
+
+                            p.draw(self.surf, draw_links=False)
+
+                        except pygame.error:
+                            pass
+
+                    else:
+                        pygame.gfxdraw.polygon(
                             self.surf,
                             [
                                 topleft.pos,
@@ -212,26 +279,22 @@ class Cloth:
                                 bottomright.pos,
                                 bottomleft.pos,
                             ],
-                            self.image,
-                            0,
-                            0,
+                            (0, 255, 255),
                         )
-                    except:
-                        pass
+        self.wind[2].draw(self.surf)
 
-                elif self.image is None:
-                    p.draw(self.surf)
-
-        win.blit(self.surf, self.rect)
+        # win.blit(self.surf, self.rect)
 
     # update the mouse position based on how much it has moved ( rel )
     # also add offset, to offset the mouse position for the surface
     def update_mouse(self, rel):
-        self.mouse.update(pygame.mouse.get_pos() + self.offset)
+        self.mouse.update(self.offset + pygame.mouse.get_pos())
         self.pmouse.update(self.mouse - rel)
 
     # check for user interaction
     def check_event(self, e):
+
+        # user interaction
         if e.type == pygame.MOUSEBUTTONDOWN and (e.button == 1 or e.button == 3):
             self.mouse_dragging = e.button
         elif e.type == pygame.MOUSEBUTTONUP and (e.button == 1 or e.button == 3):
@@ -253,3 +316,5 @@ class Cloth:
                         self.mouse_influence_scalar,  # how strong the mouse force is
                     )
 
+        # wind event
+        self.update_wind(e)

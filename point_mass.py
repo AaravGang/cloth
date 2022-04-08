@@ -77,9 +77,10 @@ class PointMass:
         if self.pinned:
             self.pos.update(self.pinned)
 
-    def draw(self, surf):
-        for link in self.links:
-            link.draw(surf)
+    def draw(self, surf, draw_links=True):
+        if draw_links:
+            for link in self.links:
+                link.draw(surf)
 
         if len(self.links) == 0 or self.pinned:
             pygame.draw.circle(surf, (0, 0, 0), self.pos, 2)

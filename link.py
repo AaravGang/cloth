@@ -23,8 +23,8 @@ class Link:
             return
 
         # if the distance is too great, break the link
-        # if d > self.tear_sensitivity:
-        #     self.p1.remove_link(self)
+        if d > self.tear_sensitivity:
+            self.p1.remove_link(self)
 
         # ratio of how far along the resting distance they are
         difference = (self.resting_distance - d) / d

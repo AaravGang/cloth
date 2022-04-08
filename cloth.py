@@ -2,7 +2,6 @@ import pygame, time, math, random
 import pygame.gfxdraw
 from point_mass import PointMass
 from wind import Wind
-# test
 
 class Cloth:
     def __init__(self, surface: pygame.surface, image=None, wind=True):

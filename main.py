@@ -9,19 +9,21 @@ win = pygame.display.set_mode((WIDTH, HEIGHT))
 
 def draw(cloth):
     win.fill((0, 0, 0))
-    cloth.draw(win)
+    cloth.draw()
     pygame.display.update()
 
 
 def main():
     sub_surface = win.subsurface((100, 100, SURF_WIDTH, SURF_HEIGHT))
-    cloth = Cloth(sub_surface, image=pygame.image.load("texture.png").convert(),)
+    cloth = Cloth(
+        sub_surface, image=pygame.image.load("texture.png").convert(), flag=False
+    )
 
     clock = pygame.time.Clock()
     run = True
 
     while run:
-        clock.tick()
+        # clock.tick()
         # print(clock.get_fps())
 
         for e in pygame.event.get():

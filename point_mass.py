@@ -35,8 +35,8 @@ class PointMass:
         self.links = []
 
     # update the position using verlet integration
-    def update(self, time_step, wind):
-        self.acc += (wind, GRAVITY)
+    def update(self, time_step, wind, gravity):
+        self.acc += (wind, gravity)
 
         vel = self.pos - self.prev_pos
         vel *= 0.99  # dampen velocity

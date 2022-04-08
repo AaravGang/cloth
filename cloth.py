@@ -3,8 +3,11 @@ import pygame.gfxdraw
 from point_mass import PointMass
 from wind import Wind
 
+
 class Cloth:
-    def __init__(self, surface: pygame.surface, image=None, wind=True):
+    GRAVITY = 980
+
+    def __init__(self, surface: pygame.surface, image=None, wind=True, flag=True):
         # create surface
         self.surf = surface
         self.surf.set_colorkey((0, 0, 0))  # set colorkey cuz gfxdraw wants it...
@@ -13,7 +16,7 @@ class Cloth:
         self.offset = -pygame.Vector2(self.surf.get_abs_offset())
 
         # no. of rows and cols, cols is really just cols+1 for a quick fix for rendering
-        self.rows, self.cols = 40, 41
+        self.rows, self.cols = 15, 31
 
         # how far away are the points while at rest?
         self.resting_distance = min(
@@ -26,6 +29,33 @@ class Cloth:
         )  # the links b/w 2 point masses will tear when they go this far apart
 
         self.stiffness = 1  # stiffer it is, harder it will be to influence
+
+        # TODO: these offsets mess up the rendering, figure out what's wrong and fix it
+        xoff = (
+            self.width / 2 - (self.cols - 1) * self.resting_distance / 2
+        )  # offset to center the cloth in the surface
+        yoff = 20
+
+        self.xoff, self.yoff = xoff, yoff
+
+        # make a flag or let it be a hanging cloth?
+        self.flag = flag
+        if self.flag:
+            self.anchor_cells = [(0, 0), (self.rows // 2, 0), (self.rows - 1, 0)]
+            self.gravity = 0
+        else:
+            self.anchor_cells = [(0, c) for c in range(0, self.cols, 5)]
+            self.gravity = self.GRAVITY
+
+        # point to draw the flag pole
+        self.anchor_points = []
+        for r, c in self.anchor_cells:
+            self.anchor_points.append(
+                (
+                    c * self.resting_distance + self.xoff,
+                    r * self.resting_distance + self.yoff,
+                )
+            )
 
         # all the pointmasses in the cloth in a 2d grid
         self.cloth = self.create_cloth()
@@ -61,13 +91,6 @@ class Cloth:
 
     # create 2d grid of pointmasses
     def create_cloth(self):
-        # TODO: these offsets mess up the rendering, figure out what's wrong and fix it
-        xoff = (
-            self.width / 2 - (self.cols - 1) * self.resting_distance / 2
-        )  # offset to center the cloth in the surface
-        yoff = 20
-
-        self.xoff, self.yoff = xoff, yoff
 
         cloth = []  # will be a 2d list of pointmasses
 
@@ -77,15 +100,11 @@ class Cloth:
             # col corresponds to x coord
             for col in range(self.cols):
                 p = PointMass(
-                    xoff + col * self.resting_distance,
-                    yoff + row * self.resting_distance,
+                    self.xoff + col * self.resting_distance,
+                    self.yoff + row * self.resting_distance,
                 )
 
-                # if col == 0 and row % (self.rows - 1) == 0:
-                #     p.pin(p.pos)
-                # if row % (self.rows - 1) == 0 and col == self.cols - 1:
-                #     p.pin(p.pos)
-                if row == 0 and col % 5 == 0:
+                if (row, col) in self.anchor_cells:
                     p.pin(p.pos)
 
                 cloth[row].append(p)
@@ -181,7 +200,7 @@ class Cloth:
             # update the physics of each pointmass
             for row in self.cloth:
                 for p in row:
-                    p.update(1 / 125, self.wind[1])
+                    p.update(1 / 125, self.wind[1], self.gravity)
 
         self.wind[2].update()
 
@@ -225,8 +244,12 @@ class Cloth:
         """
 
     # all drawing
-    def draw(self, win):
+    def draw(self):
         self.surf.fill((255, 0, 255))
+
+        pygame.draw.line(
+            self.surf, (101, 67, 33), self.anchor_points[0], self.anchor_points[-1], 10
+        )
 
         for r, row in enumerate(self.cloth):
             for c, p in enumerate(row):
@@ -280,6 +303,7 @@ class Cloth:
                             ],
                             (0, 255, 255),
                         )
+
         self.wind[2].draw(self.surf)
 
         # win.blit(self.surf, self.rect)

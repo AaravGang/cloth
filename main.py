@@ -14,9 +14,16 @@ def draw(cloth):
 
 
 def main():
-    sub_surface = win.subsurface((100, 100, SURF_WIDTH, SURF_HEIGHT))
+    sub_surface = win.subsurface(
+        (
+            WIDTH / 2 - SURF_WIDTH / 2,
+            HEIGHT / 2 - SURF_HEIGHT / 2,
+            SURF_WIDTH,
+            SURF_HEIGHT,
+        )
+    )
     cloth = Cloth(
-        sub_surface, image=pygame.image.load("texture.png").convert(), flag=False
+        sub_surface, image=pygame.image.load("texture.png").convert(), flag=True
     )
 
     clock = pygame.time.Clock()

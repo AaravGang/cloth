@@ -162,7 +162,9 @@ class Cloth:
         if self.wind[0]:
 
             if e.type == pygame.USEREVENT + 1:
-                self.wind[1] = random.choice([-1, 1]) * random.randint(500, 1000)
+                self.wind[1] = random.randint(
+                    500, 1000
+                )  # random.choice([-1, 1]) * random.randint(500, 1000)
                 self.wind[2].set_vel(self.wind[1])
 
             else:
@@ -247,9 +249,22 @@ class Cloth:
     def draw(self):
         self.surf.fill((255, 0, 255))
 
-        pygame.draw.line(
-            self.surf, (101, 67, 33), self.anchor_points[0], self.anchor_points[-1], 10
-        )
+        if self.flag:
+            pygame.draw.line(
+                self.surf,
+                (101, 67, 33),
+                self.anchor_points[0],
+                (self.anchor_points[0][0], (self.height - 50)),
+                10,
+            )
+        else:
+            pygame.draw.line(
+                self.surf,
+                (101, 67, 33),
+                self.anchor_points[0],
+                self.anchor_points[-1],
+                10,
+            )
 
         for r, row in enumerate(self.cloth):
             for c, p in enumerate(row):
@@ -305,8 +320,6 @@ class Cloth:
                         )
 
         self.wind[2].draw(self.surf)
-
-        # win.blit(self.surf, self.rect)
 
     # update the mouse position based on how much it has moved ( rel )
     # also add offset, to offset the mouse position for the surface
